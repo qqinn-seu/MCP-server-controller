@@ -1,5 +1,7 @@
 # macOS PTY 启动问题与重验
 
+当前最新版签收标准为10个文件、80/80通过；下文68/71是历史补丁时的数量，请以末尾第三轮修复与验收步骤为准。
+
 2026-10-25 收到的 macOS ARM64 验收结果为：46/63 通过，17/63 失败。失败都集中在真实 PTY 创建，统一报 `SPAWN_FAILED: posix_spawnp failed`；demo 与 ps 脚本也在第一次创建时失败。因此本轮 macOS 验收**未通过**，不能仅凭关闭后的空列表或五个测试文件通过就签收。
 
 ## 已确认的打包问题
@@ -80,3 +82,28 @@ npm test -- tests/integration/pty.test.ts
 这条命令定位运行整个 PTY 文件的16个用例，不是完整签收。如果暂时16/16全通过，也请回传结果，不以一次偶然通过关闭先前出现的竞态问题。最终仍需要全量 `npm test`、demo和ps证据，并由用户确认人工验收。
 
 为验证诊断不吞掉权限失败，本轮新增3个确定性用例，分别模拟组探测、根探测和TERM发送的EPERM。Linux当前全量为**9个文件、71/71通过**；macOS签收标准也相应变为71/71，仍待重验。现有256次立即终止循环、每次根/组消失断言以及时限保持不变。
+
+## 第三轮：确认终止信号成功后的 EPERM 探测竞态
+
+第三轮诊断明确：同一会话的 SIGTERM、SIGKILL 均成功返回，随后 `phase=final_wait` 的 `operation=probe_group` 抛出 `kill EPERM`；稍后针对该 PID/PGID 的 ps 快照没有任何行，根退出回调当时尚未到达。问题位于“终止后的消失确认”，不是此前的 helper 启动权限，也不是实际信号发送失败。
+
+本轮实现已针对该竞态修复：本次清理至少一个终止信号成功返回后，才允许对 `kill(...,0)` 的 EPERM 做有限只读重试。EPERM始终表示当前不能确认，不返回不存在。每次重试重新采样组和根的完整布尔快照，不短路、不沿用重试前的旧false。只有两者明确不存在才报告group_cleared。
+
+截止时间只在首次成功终止信号返回时创建：TERM成功为当时的单调时间加grace、drain_timeout_ms与500ms；若TERM为ESRCH、首次成功的是KILL，则使用KILL返回时间加drain_timeout_ms与500ms。重试不会刷新或延长截止时间，重试期间不再次发送TERM/KILL。实际信号EPERM、其他探测错误，以及信号成功前的权限错误仍立即failed；持续的终止后EPERM在截止时间后failed，不能用ps空行或SDK回调代替两个探测的确认。
+
+新增9个确定性用例覆盖瞬时组/根拒绝、根仍存在时不得早清空、持续拒绝有界失败、实际KILL错误不重发、未知错误不重试、完整重采样、组仍存在时根权限拒绝、迟到退出回调与首次KILL成功的路径。当前Linux全量**10个文件、80/80通过，连续三轮通过**；每轮真实立即终止256次通过，回归后未发现fixture或僵尸行。macOS仍需用户本机验证，不能用这些Linux结果代替签收。
+
+当前最新 macOS 验收步骤：
+
+```bash
+cd ~/MCP-server-controller
+git pull --ff-only origin phase-1/session-kernel
+npm test
+# 请按同样命令连续完成三轮，不以一次偶然通过签收。
+npm run demo
+npm run evidence:ps
+```
+
+三轮每次都应为10个测试文件、80/80通过，并显示 `IMMEDIATE_TERMINATE_SUMMARY` 的 `cleared_iterations:256`。`deferred_probe_events` 大于0说明确实遇到并等待了受限探测，不等于失败；为0也正常，它是事件数，不是全部系统调用重试次数。demo应全部符合README预期，ps最终为`REMAINING_TRACKED_ROWS=0 TRACKED_ZOMBIES=0`。
+
+若再失败，请保留完整的IMMEDIATE_TERMINATE_DIAGNOSTIC行。新诊断保留cleanup_probe_retry事件，以区分持续权限拒绝、其他阶段的真实失败与重试后重新采样的结果。若git pull因本机证据文件被修改而拒绝更新，请保留本机结果，不要hard reset或删除证据，回传Git报错再处理。

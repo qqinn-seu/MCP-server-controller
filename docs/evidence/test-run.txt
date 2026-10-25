@@ -14,26 +14,34 @@
 
  RUN  v5.0.5 /home/ubuntu/work/github-MCP-server-controller
 
- ✓ tests/integration/pty.test.ts (16 tests) 3253ms
+stdout | tests/integration/pty.test.ts > 真实 forkpty 初始竞态压力回归 > IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空
+IMMEDIATE_TERMINATE_SUMMARY={"cleared_iterations":256,"deferred_probe_events":0}
+
+ ✓ tests/integration/pty.test.ts (16 tests) 3118ms
    ✓ 真实 PTY：15.1 Linux 全量验收 (15)
-     ✓ RUN-SAME-NONZERO：超时 background 的同一会话继续运行且非零退出不报工具失败 326ms
+     ✓ RUN-SAME-NONZERO：超时 background 的同一会话继续运行且非零退出不报工具失败 325ms
    ✓ 真实 forkpty 初始竞态压力回归 (1)
-     ✓ IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空 1800ms
- ✓ tests/unit/wait-matcher.test.ts (16 tests) 740ms
- ✓ tests/integration/lifecycle.test.ts (14 tests) 666ms
- ✓ tests/integration/host.test.ts (2 tests) 359ms
+     ✓ IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空 1659ms
+ ✓ tests/unit/wait-matcher.test.ts (16 tests) 715ms
+ ✓ tests/integration/lifecycle.test.ts (14 tests) 653ms
+ ✓ tests/unit/cleanup-probe-retry.test.ts (9 tests) 1174ms
+   ✓ 成功终止信号后的有界只读探测重试 (5)
+     ✓ POST-KILL-PERSISTENT-EPERM：同一截止时间到期仍拒绝则failed，不无界续时 527ms
+   ✓ 完整采样与首次成功信号边界 (4)
+     ✓ LIVE-GROUP-ROOT-EPERM：组仍存在也必须检查根，持续拒绝不能降级为partial 523ms
+ ✓ tests/integration/host.test.ts (2 tests) 349ms
  ✓ tests/unit/output-ring.test.ts (7 tests) 21ms
- ✓ tests/unit/prepare-pty.test.ts (5 tests) 18ms
+ ✓ tests/unit/prepare-pty.test.ts (5 tests) 19ms
+ ✓ tests/unit/input-queue.test.ts (4 tests) 12ms
  ✓ tests/unit/cleanup-diagnostics.test.ts (3 tests) 16ms
- ✓ tests/unit/input-queue.test.ts (4 tests) 17ms
- ✓ tests/unit/config.test.ts (4 tests) 11ms
+ ✓ tests/unit/config.test.ts (4 tests) 10ms
 
- Test Files  9 passed (9)
-      Tests  71 passed (71)
-   Start at  08:14:41
-   Duration  7.02s (tests 92%, import 6%, transform 2%, worker 1%)
+ Test Files  10 passed (10)
+      Tests  80 passed (80)
+   Start at  08:26:04
+   Duration  8.23s (tests 91%, import 5%, transform 3%, worker 1%)
 
-    Isolate  9 workers spawned · ~149ms startup each (spawn + environment, per file)
-             at least ~1.19s faster with isolate: false — reuses workers across files instead of one per file
+    Isolate  10 workers spawned · ~146ms startup each (spawn + environment, per file)
+             at least ~1.31s faster with isolate: false — reuses workers across files instead of one per file
 
 JSON report written to /home/ubuntu/work/github-MCP-server-controller/docs/evidence/vitest-results.json

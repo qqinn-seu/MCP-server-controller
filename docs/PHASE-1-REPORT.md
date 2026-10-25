@@ -1,6 +1,6 @@
 # 阶段 ①：会话内核交付与验收报告
 
-日期：2026-10-25。范围：[V1 规格 15.1](V1-SPEC.md)，纯会话内核，不接 MCP。状态：**Linux 当前沙箱实现与全量自动化验证已通过；macOS第二轮67/68通过，立即终止仍失败；诊断补丁已提供，等待底层错误与重验。没有进入阶段 ②。**
+日期：2026-10-25。范围：[V1 规格 15.1](V1-SPEC.md)，纯会话内核，不接 MCP。状态：**Linux 当前沙箱实现与全量自动化验证已通过；macOS已定位终止后EPERM探测竞态并提供修复，等待本机三轮全量与人工重验。没有进入阶段 ②。**
 
 ## 1. 本轮规格小修订
 
@@ -31,12 +31,12 @@
 | node-pty / 官方 MCP SDK | 1.1.0 / 1.32.2 |
 | Docker | 未使用 |
 | npm run build | 通过 |
-| 全量 test:report | **9 个测试文件，71/71 通过；0 失败、0 跳过** |
+| 全量 test:report | **10 个测试文件，80/80 通过；0 失败、0 跳过；连续三轮完整回归通过** |
 | npm run demo | 通过：REPL、向导、同会话后台续读、非零退出、Ctrl-C、正常关闭 |
 | npm run evidence:ps | 通过：本次受管 PID/PGID 终止后 0 残留、0 僵尸 |
 | macOS | 用户本机人工验收待完成，不以 Linux 替代 |
 
-运行命令：`npm run test:report`（包含 build）；原始机器可读结果：[vitest-results.json](evidence/vitest-results.json)。另有早先版本连续三轮 56/56 回归通过；最终追加 read 半个 UTF-8 及跨会话 Worker 用例后，上表以清理诊断补丁后的 71 用例报告为准，不把不同版本结果混为最终证据。
+运行命令：`npm run test:report`（包含 build）；原始机器可读结果：[vitest-results.json](evidence/vitest-results.json)。另有早先版本连续三轮 56/56 回归通过；最终追加 read 半个 UTF-8 及跨会话 Worker 用例后，上表以终止后探测修复后的 80 用例报告为准，不把不同版本结果混为最终证据。
 
 ## 4. 15.1 每条验收标准的用例映射
 
@@ -182,6 +182,20 @@ npm run evidence:ps
 - [passed] 清理错误诊断，不吞权限失败 CLEANUP-SIGNAL-EPERM：保留failed与errno，重复terminate不另起清理
 
 该补丁只补诊断；EPERM仍是failed，不能按不存在处理，也不能仅凭Linux71/71宣称macOS竞态已修复。
+
+### tests/unit/cleanup-probe-retry.test.ts（9 项）
+
+- [passed] 成功终止信号后的有界只读探测重试 POST-KILL-GROUP-EPERM：瞬时拒绝后组消失，但根仍存在时不得提前清空
+- [passed] 成功终止信号后的有界只读探测重试 POST-KILL-ROOT-EPERM：根探测权限拒绝不等于根消失，恢复确认后才清空
+- [passed] 成功终止信号后的有界只读探测重试 POST-KILL-PERSISTENT-EPERM：同一截止时间到期仍拒绝则failed，不无界续时
+- [passed] 成功终止信号后的有界只读探测重试 ACTUAL-KILL-EPERM：TERM成功不授权吞掉KILL发送错误，也不重发KILL
+- [passed] 成功终止信号后的有界只读探测重试 POST-SIGNAL-UNKNOWN-ERROR：非EPERM探测错误仍立即failed
+- [passed] 完整采样与首次成功信号边界 LIVE-GROUP-ROOT-EPERM：组仍存在也必须检查根，持续拒绝不能降级为partial
+- [passed] 完整采样与首次成功信号边界 RESAMPLE-PAIR：根探测重试后必须重采样组，不能沿用先前的组false
+- [passed] 完整采样与首次成功信号边界 ABSENT-BEFORE-EXIT-CALLBACK：两个探测明确不存在可清空，不伪造迟到的退出信息
+- [passed] 完整采样与首次成功信号边界 TERM-ESRCH-KILL-SUCCESS：首次成功是KILL时仍有一次固定确认窗口
+
+最新修复仅对成功终止信号后的零信号探测EPERM做固定截止时间内的只读重试，使用新的根/组完整采样验证；实际信号失败、初始权限失败和持续拒绝仍失败。Linux80/80×3不能代替macOS签收。
 
 ## 8. GitHub 交付范围
 

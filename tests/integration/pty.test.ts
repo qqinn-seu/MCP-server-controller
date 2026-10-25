@@ -167,7 +167,7 @@ describe('真实 forkpty 初始竞态压力回归', () => {
     const events:CoreEvent[]=[];
     const m=new SessionManager({config:{max_session_records:512,default_terminate_grace_ms:10},
       backend:(spec,callbacks)=>{const h=spawnPty(spec,callbacks);handles.push(h);return h;},
-      onEvent:event=>{if(['signal','cleanup_error','cleanup','exited','output_closed'].includes(event.type))events.push(event);}});
+      onEvent:event=>{if(['signal','cleanup_probe_retry','cleanup_error','cleanup','exited','output_closed'].includes(event.type))events.push(event);}});
     managers.push(m);
     const diagnostic=(iteration:number,id:string,h:ProcessHandle,extra?:unknown)=>{
       let processRows:string[];
@@ -200,6 +200,8 @@ describe('真实 forkpty 初始竞态压力回归', () => {
           throw new Error(diagnostic(n,s.session_id,h,'cleanup did not clear within deadline'));
         expect(h.rootExists()).toBe(false);
       }
+      console.log('IMMEDIATE_TERMINATE_SUMMARY='+JSON.stringify({cleared_iterations:256,
+        deferred_probe_events:events.filter(event=>event.type==='cleanup_probe_retry').length}));
     }finally{
       await m.close();
       // 即使回归失败也由harness清理其自己记录的PID，不依赖误报的cleanup结果。

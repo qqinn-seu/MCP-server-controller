@@ -299,7 +299,32 @@ export class SessionManager {
       let attemptedSignal:NodeJS.Signals|null=null;
       const groupExists=()=>{operation='probe_group';attemptedSignal=null;return handle.groupExists();};
       const rootExists=()=>{operation='probe_root';attemptedSignal=null;return handle.rootExists();};
-      const signalGroup=(signal:NodeJS.Signals)=>{operation='signal_group';attemptedSignal=signal;handle.signalGroup(signal);};
+      let terminationSignalAccepted=false,finalDeadline=0;
+      const announcedRetries=new Set<string>();
+      const signalGroup=(signal:NodeJS.Signals)=>{
+        operation='signal_group';attemptedSignal=signal;handle.signalGroup(signal);
+        terminationSignalAccepted=true;
+        if(!finalDeadline)finalDeadline=performance.now()+(signal==='SIGTERM'?grace:0)+this.config.drain_timeout_ms+500;
+      };
+      const postSignalSnapshot=async(deadline:number):Promise<{group:boolean;root:boolean}>=>{
+        while(true){
+          try{
+            // 不短路；任何一个探测报错后，下一轮必须重新完整采样，不能沿用旧false。
+            const group=groupExists(),root=rootExists();
+            return {group,root};
+          }
+          catch(error){
+            // macOS 退出过渡可能暂时拒绝 kill(...,0)。EPERM 不等于不存在。
+            // 只在本次终止信号已成功后重试只读探测，绝不在这里再发送信号。
+            if(!terminationSignalAccepted || (error as NodeJS.ErrnoException).code!=='EPERM' || performance.now()>=deadline)throw error;
+            if(!announcedRetries.has(operation)){
+              announcedRetries.add(operation);
+              this.event(s,'cleanup_probe_retry',{code:'EPERM',operation,phase,pid:handle.pid,pgid:handle.pgid});
+            }
+            await sleep(Math.min(5,Math.max(1,deadline-performance.now())));
+          }
+        }
+      };
       try {
         // forkpty 父侧返回后，子侧可能尚未完成 setsid/PGID 建立。
         // 暂时找不到 -PID 不等于组已清空；只探测当前受管根PID，不做重启身份核验。
@@ -311,17 +336,29 @@ export class SessionManager {
           try { signalGroup('SIGTERM'); this.event(s,'signal',{signal:'SIGTERM'}); }
           catch(error) { if ((error as NodeJS.ErrnoException).code!=='ESRCH') throw error; }
           phase='grace_wait';
-          const until=performance.now()+grace;
-          while (groupExists() && performance.now()<until) await sleep(Math.min(20,Math.max(1,until-performance.now())));
+          const until=terminationSignalAccepted?finalDeadline-this.config.drain_timeout_ms-500:performance.now()+grace;
+          // 统一的 post-signal 截止时间已在信号成功时创建，任何重试都不得刷新它。
+          let current=await postSignalSnapshot(finalDeadline);
+          while (current.group && performance.now()<until) {
+            await sleep(Math.min(20,Math.max(1,until-performance.now())));
+            current=await postSignalSnapshot(finalDeadline);
+          }
           phase='escalate';
-          if (groupExists()) { try { signalGroup('SIGKILL'); this.event(s,'signal',{signal:'SIGKILL'}); }
+          current=await postSignalSnapshot(finalDeadline);
+          if (current.group) { try { signalGroup('SIGKILL'); this.event(s,'signal',{signal:'SIGKILL'}); }
             catch(error) { if ((error as NodeJS.ErrnoException).code!=='ESRCH') throw error; } }
           phase='final_wait';
-          const final=performance.now()+this.config.drain_timeout_ms+500;
-          while((groupExists()||rootExists())&&performance.now()<final) await sleep(5);
+          // 若所有发信号尝试都是ESRCH，只作有界确认；权限探测重试门槛仍未开启。
+          if(!finalDeadline)finalDeadline=performance.now()+this.config.drain_timeout_ms+500;
+          current=await postSignalSnapshot(finalDeadline);
+          while((current.group||current.root)&&performance.now()<finalDeadline){
+            await sleep(Math.min(5,Math.max(1,finalDeadline-performance.now())));
+            current=await postSignalSnapshot(finalDeadline);
+          }
         }
         phase='verify_clear';
-        s.cleanup=groupExists()||rootExists()?'partial':'group_cleared';
+        const verified=await postSignalSnapshot(finalDeadline);
+        s.cleanup=verified.group||verified.root?'partial':'group_cleared';
       } catch(error) {
         const detail=(error && typeof error==='object'?error:{}) as NodeJS.ErrnoException;
         s.cleanup='failed';
