@@ -14,10 +14,12 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:report": "npm run build && vitest run --reporter=default --reporter=json --outputFile.json=docs/evidence/vitest-results.json",
-    "demo": "npm run build && node scripts/demo.mjs",
-    "evidence:ps": "npm run build && node scripts/process-evidence.mjs",
-    "pretest": "npm run build"
+    "test:report": "npm run prepare:pty && npm run build && vitest run --reporter=default --reporter=json --outputFile.json=docs/evidence/vitest-results.json",
+    "demo": "npm run prepare:pty && npm run build && node scripts/demo.mjs",
+    "evidence:ps": "npm run prepare:pty && npm run build && node scripts/process-evidence.mjs",
+    "pretest": "npm run prepare:pty && npm run build",
+    "prepare:pty": "node scripts/prepare-pty.mjs",
+    "postinstall": "npm run prepare:pty"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

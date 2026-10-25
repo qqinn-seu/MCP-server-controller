@@ -12,6 +12,8 @@
 
 测试必须以非 root 用户运行。当前沙箱支持普通用户，**没有增加 root 绕过开关**；内核构造和演示默认拒绝 root。`assertRuntimeUser(0)` 用例仅模拟 root 判断，不实际提权。若未来环境确实只能用 root，应另行增加明确、只供测试且默认关闭的入口，不得复用生产配置或默认放开 root。
 
+macOS 安装与验收命令会运行 `npm run prepare:pty`，为固定 node-pty@1.1.0 的当前架构 `spawn-helper` 补上 owner 执行位；不修改辅助程序内容、不扩大读写权限、不放开 root。该版本发布包中的 Darwin helper 缺少执行位，可能导致所有真实 PTY 场景报 `posix_spawnp failed`。已有安装无需重装，可单独运行准备命令。详见 [macOS PTY 启动问题与重验](docs/MACOS-PTY-TROUBLESHOOTING.md)。
+
 `node-pty` 需要原生构建工具。Linux 准备 Python 3、make、C/C++ 编译器及可用 `/dev/ptmx`/devpts；macOS 准备 Xcode Command Line Tools 与 Python 3。请不要以 `sudo npm test` 或 `sudo npm ci` 绕过安装问题。
 
 ## 安装、构建、测试（Linux 沙箱与 macOS 同样命令）
@@ -112,4 +114,4 @@ V1 始终不做：Pipe、Windows、多用户、强 OS 沙箱、逃逸后代强�
 
 立即终止不能把尚未建立的进程组当成已清空：核心先等待当前受管根的 PGID 就绪，超限报 unverified，最终根或组仍存活时报 partial，不返回 group_cleared。`rootExists` 只针对当前实例已登记的 PID 做 signal 0 探测，不读取身份元数据或恢复旧会话。`IMMEDIATE-TERMINATE` 在真实 PTY 上重复 256 次 create→terminate(grace_ms:0)，逐次验证根与组均消失；`GROUP-READY-RACE` 确定性模拟组建立滞后。
 
-普通正则在 suffix+fresh 的完整视图重新检查首个候选，不按返回文本 end 是否在 fresh 中过滤；因此跨 64 KiB 才成立的 a(?=b)、零宽 (?=ab) 以及等待新 b 的环视均可命中。全量测试包含这些回归；按当前版 test:report 共 63 项。
+普通正则在 suffix+fresh 的完整视图重新检查首个候选，不按返回文本 end 是否在 fresh 中过滤；因此跨 64 KiB 才成立的 a(?=b)、零宽 (?=ab) 以及等待新 b 的环视均可命中。全量测试包含这些回归；按当前版 test:report 共 68 项。
