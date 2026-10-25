@@ -58,3 +58,25 @@ ls -l node_modules/node-pty/prebuilds/darwin-*/spawn-helper
 你当前日志使用 Node 26.11.1，满足所用 vitest 的 engines，不能直接断言 Node 26 是此次错误根因。为了与开发基线对齐，使用 nvm 的用户可另行执行 `nvm install && nvm use`，切到仓库的 22.13.0；若换版本后需要重新安装，再执行 `npm ci`。不要全局卸载 Node，不要用 sudo npm test，也不要关闭系统安全机制。
 
 npm 的 install-scripts 警告值得保留，但仅凭“尚未 covered by allowScripts”不能认定安装脚本已被禁止；该版本自身的 prebuild/post-install 脚本也没有修复 Darwin helper 执行位。若准备步骤反而报原生模块缺失，再根据具体安装日志处理所需的依赖脚本或原生构建，不要一概放开所有安装脚本。
+
+## 第二轮：立即终止压力测试仍失败
+
+第二轮 macOS 结果为 67/68 通过：正常 PTY、REPL、向导、TERM/KILL、Ctrl-C、组内子进程清理以及宿主退出均已通过，说明辅助程序权限补丁已经生效。仍有一次 `IMMEDIATE-TERMINATE` 返回 `cleanup_result=failed`，因此阶段①仍不能验收通过。
+
+原失败信息只有“expected failed to be group_cleared”，没有底层错误码。当前只能确定 `startCleanup` 捕获了异常，不能直接断言是权限、信号发送或存活探测。此轮提供的是**诊断补丁，不是已经证实解决该清理失败的功能补丁**：保留原 TERM→KILL、建组等待与根/组均消失才报告清空的语义，不吞 EPERM，不放宽断言，不跳过 macOS。
+
+诊断补丁会在内存 `cleanup_error` 事实回调记录 `code`、`errno`、`syscall`、`operation`、`phase`、`attempted_signal`、PID/PGID 与是否观察到根退出。没有新增磁盘审计、持久化或重启进程身份核验。压力测试失败时输出 `IMMEDIATE_TERMINATE_DIAGNOSTIC=` JSON，附上本次受管 PID/PGID 的只读 ps 行。harness 清理阶段的错误另行输出，避免覆盖最初的诊断。未枚举或清理逃逸后代。
+
+请在 macOS 本机运行：
+
+```bash
+cd ~/MCP-server-controller
+git pull --ff-only origin phase-1/session-kernel
+npm test -- tests/integration/pty.test.ts
+```
+
+请回传 `IMMEDIATE_TERMINATE_DIAGNOSTIC=` 所在的完整行和错误堆栈，包括其中的 `cleanup_error.details`、`process_rows`。若出现 `HARNESS_ROOT_PROBE` 或 `HARNESS_KILL` 也一并保留。不能把 test finally 中的手动收尾当作核心已清理成功。
+
+这条命令定位运行整个 PTY 文件的16个用例，不是完整签收。如果暂时16/16全通过，也请回传结果，不以一次偶然通过关闭先前出现的竞态问题。最终仍需要全量 `npm test`、demo和ps证据，并由用户确认人工验收。
+
+为验证诊断不吞掉权限失败，本轮新增3个确定性用例，分别模拟组探测、根探测和TERM发送的EPERM。Linux当前全量为**9个文件、71/71通过**；macOS签收标准也相应变为71/71，仍待重验。现有256次立即终止循环、每次根/组消失断言以及时限保持不变。

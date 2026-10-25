@@ -1,6 +1,6 @@
 # 阶段 ①：会话内核交付与验收报告
 
-日期：2026-10-25。范围：[V1 规格 15.1](V1-SPEC.md)，纯会话内核，不接 MCP。状态：**Linux 当前沙箱实现与全量自动化验证已通过；macOS 首轮验收未通过；helper 安装补丁已提供，等待用户重验。没有进入阶段 ②。**
+日期：2026-10-25。范围：[V1 规格 15.1](V1-SPEC.md)，纯会话内核，不接 MCP。状态：**Linux 当前沙箱实现与全量自动化验证已通过；macOS第二轮67/68通过，立即终止仍失败；诊断补丁已提供，等待底层错误与重验。没有进入阶段 ②。**
 
 ## 1. 本轮规格小修订
 
@@ -31,12 +31,12 @@
 | node-pty / 官方 MCP SDK | 1.1.0 / 1.32.2 |
 | Docker | 未使用 |
 | npm run build | 通过 |
-| 全量 test:report | **8 个测试文件，68/68 通过；0 失败、0 跳过** |
+| 全量 test:report | **9 个测试文件，71/71 通过；0 失败、0 跳过** |
 | npm run demo | 通过：REPL、向导、同会话后台续读、非零退出、Ctrl-C、正常关闭 |
 | npm run evidence:ps | 通过：本次受管 PID/PGID 终止后 0 残留、0 僵尸 |
 | macOS | 用户本机人工验收待完成，不以 Linux 替代 |
 
-运行命令：`npm run test:report`（包含 build）；原始机器可读结果：[vitest-results.json](evidence/vitest-results.json)。另有早先版本连续三轮 56/56 回归通过；最终追加 read 半个 UTF-8 及跨会话 Worker 用例后，上表以安装准备补丁后的 68 用例报告为准，不把不同版本结果混为最终证据。
+运行命令：`npm run test:report`（包含 build）；原始机器可读结果：[vitest-results.json](evidence/vitest-results.json)。另有早先版本连续三轮 56/56 回归通过；最终追加 read 半个 UTF-8 及跨会话 Worker 用例后，上表以清理诊断补丁后的 71 用例报告为准，不把不同版本结果混为最终证据。
 
 ## 4. 15.1 每条验收标准的用例映射
 
@@ -174,6 +174,14 @@ npm run evidence:ps
 - [passed] PTY 安装准备：只修复 macOS helper 执行位 PREPARE-FAIL-CLEAR：版本变化、缺失和非普通文件明确失败
 
 安装准备补丁针对 node-pty@1.1.0 发布包的 Darwin helper 执行位，不改变工具契约；macOS 首轮 46/63 通过、17 次相同启动错误，需依照 [重验说明](MACOS-PTY-TROUBLESHOOTING.md) 重新测试，不能签为通过。
+
+### tests/unit/cleanup-diagnostics.test.ts（3 项）
+
+- [passed] 清理错误诊断，不吞权限失败 CLEANUP-GROUP-EPERM：保留failed与errno，重复terminate不另起清理
+- [passed] 清理错误诊断，不吞权限失败 CLEANUP-ROOT-EPERM：保留failed与errno，重复terminate不另起清理
+- [passed] 清理错误诊断，不吞权限失败 CLEANUP-SIGNAL-EPERM：保留failed与errno，重复terminate不另起清理
+
+该补丁只补诊断；EPERM仍是failed，不能按不存在处理，也不能仅凭Linux71/71宣称macOS竞态已修复。
 
 ## 8. GitHub 交付范围
 

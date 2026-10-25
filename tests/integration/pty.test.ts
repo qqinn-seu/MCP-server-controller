@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { SessionManager } from '../../src/core/session-manager.js';
+import { execFileSync } from 'node:child_process';
+import { SessionManager, type CoreEvent } from '../../src/core/session-manager.js';
 import { CoreError, resultOf } from '../../src/contracts/errors.js';
 import type { CreateData } from '../../src/contracts/types.js';
 import type { CoreConfig } from '../../src/core/config.js';
@@ -163,9 +164,21 @@ describe('真实 PTY：15.1 Linux 全量验收',()=>{
 describe('真实 forkpty 初始竞态压力回归', () => {
   it('IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空', async () => {
     const handles:ProcessHandle[]=[];
+    const events:CoreEvent[]=[];
     const m=new SessionManager({config:{max_session_records:512,default_terminate_grace_ms:10},
-      backend:(spec,callbacks)=>{const h=spawnPty(spec,callbacks);handles.push(h);return h;}});
+      backend:(spec,callbacks)=>{const h=spawnPty(spec,callbacks);handles.push(h);return h;},
+      onEvent:event=>{if(['signal','cleanup_error','cleanup','exited','output_closed'].includes(event.type))events.push(event);}});
     managers.push(m);
+    const diagnostic=(iteration:number,id:string,h:ProcessHandle,extra?:unknown)=>{
+      let processRows:string[];
+      try{
+        processRows=execFileSync('ps',['-axo','pid,ppid,pgid,uid,stat,command'],{encoding:'utf8'})
+          .split('\n').filter(row=>{const columns=row.trim().split(/\s+/);return Number(columns[0])===h.pid||Number(columns[2])===h.pgid;});
+      }catch(error){processRows=[`ps failed: ${String(error)}`];}
+      return 'IMMEDIATE_TERMINATE_DIAGNOSTIC='+JSON.stringify({iteration,session_id:id,
+        pid:h.pid,pgid:h.pgid,state:m.status({session_id:id}),
+        events:events.filter(event=>event.session_id===id),process_rows:processRows,extra});
+    };
     try {
       for(let n=0;n<256;n++){
         const s=await m.create({argv:['/bin/sleep','30']});const h=handles.at(-1)!;
@@ -173,21 +186,32 @@ describe('真实 forkpty 初始竞态压力回归', () => {
         const deadline=Date.now()+3000;
         while(Date.now()<deadline){
           const state=m.status({session_id:s.session_id});
+          if(state.cleanup_result==='failed')throw new Error(diagnostic(n,s.session_id,h));
           if(state.cleanup_result==='group_cleared'){
-            expect(h.rootExists(),`iteration=${n}: root must be gone when group_cleared`).toBe(false);
-            expect(h.groupExists(),`iteration=${n}: managed group must be gone`).toBe(false);
+            try{
+              expect(h.rootExists(),`iteration=${n}: root must be gone when group_cleared`).toBe(false);
+              expect(h.groupExists(),`iteration=${n}: managed group must be gone`).toBe(false);
+            }catch(error){throw new Error(diagnostic(n,s.session_id,h,String(error)));}
           }
           if(state.status==='exited'&&state.output_closed&&state.cleanup_result==='group_cleared')break;
           await delay(1);
         }
-        expect(m.status({session_id:s.session_id}).cleanup_result).toBe('group_cleared');
+        if(m.status({session_id:s.session_id}).cleanup_result!=='group_cleared')
+          throw new Error(diagnostic(n,s.session_id,h,'cleanup did not clear within deadline'));
         expect(h.rootExists()).toBe(false);
       }
     }finally{
       await m.close();
       // 即使回归失败也由harness清理其自己记录的PID，不依赖误报的cleanup结果。
-      for(const h of handles)if(h.rootExists()){
-        try{h.signalGroup('SIGKILL');}catch{try{process.kill(h.pid,'SIGKILL');}catch{}}
+      for(const h of handles){
+        let exists=true;
+        try{exists=h.rootExists();}catch(error){console.error(`HARNESS_ROOT_PROBE pid=${h.pid}: ${String(error)}`);}
+        if(!exists)continue;
+        try{h.signalGroup('SIGKILL');}catch{
+          try{process.kill(h.pid,'SIGKILL');}catch(error){
+            if((error as NodeJS.ErrnoException).code!=='ESRCH')console.error(`HARNESS_KILL pid=${h.pid}: ${String(error)}`);
+          }
+        }
       }
     }
   },30000);

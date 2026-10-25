@@ -114,4 +114,6 @@ V1 始终不做：Pipe、Windows、多用户、强 OS 沙箱、逃逸后代强�
 
 立即终止不能把尚未建立的进程组当成已清空：核心先等待当前受管根的 PGID 就绪，超限报 unverified，最终根或组仍存活时报 partial，不返回 group_cleared。`rootExists` 只针对当前实例已登记的 PID 做 signal 0 探测，不读取身份元数据或恢复旧会话。`IMMEDIATE-TERMINATE` 在真实 PTY 上重复 256 次 create→terminate(grace_ms:0)，逐次验证根与组均消失；`GROUP-READY-RACE` 确定性模拟组建立滞后。
 
-普通正则在 suffix+fresh 的完整视图重新检查首个候选，不按返回文本 end 是否在 fresh 中过滤；因此跨 64 KiB 才成立的 a(?=b)、零宽 (?=ab) 以及等待新 b 的环视均可命中。全量测试包含这些回归；按当前版 test:report 共 68 项。
+普通正则在 suffix+fresh 的完整视图重新检查首个候选，不按返回文本 end 是否在 fresh 中过滤；因此跨 64 KiB 才成立的 a(?=b)、零宽 (?=ab) 以及等待新 b 的环视均可命中。全量测试包含这些回归；按当前版 test:report 共 71 项。
+
+立即终止的 macOS 第二轮结果为67/68通过，仍有一次 cleanup_result=failed。当前诊断补丁不伪装修复或吞掉权限错误，失败会输出 IMMEDIATE_TERMINATE_DIAGNOSTIC JSON；定位命令和回传要求见 [立即终止诊断](docs/MACOS-PTY-TROUBLESHOOTING.md)。新增3个权限诊断单测后当前全量为71项，macOS仍待通过。

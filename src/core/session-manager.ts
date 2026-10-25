@@ -295,24 +295,41 @@ export class SessionManager {
     s.cleanupPromise=(async()=>{
       const handle=s.handle;
       if (!handle) { s.cleanup='unverified'; return; }
+      let operation='none',phase='group_ready';
+      let attemptedSignal:NodeJS.Signals|null=null;
+      const groupExists=()=>{operation='probe_group';attemptedSignal=null;return handle.groupExists();};
+      const rootExists=()=>{operation='probe_root';attemptedSignal=null;return handle.rootExists();};
+      const signalGroup=(signal:NodeJS.Signals)=>{operation='signal_group';attemptedSignal=signal;handle.signalGroup(signal);};
       try {
         // forkpty 父侧返回后，子侧可能尚未完成 setsid/PGID 建立。
         // 暂时找不到 -PID 不等于组已清空；只探测当前受管根PID，不做重启身份核验。
         const readyDeadline=performance.now()+Math.max(100,this.config.drain_timeout_ms);
-        while (!handle.groupExists() && handle.rootExists() && performance.now()<readyDeadline) await sleep(1);
-        if (!handle.groupExists() && handle.rootExists()) { s.cleanup='unverified'; return; }
-        if (handle.groupExists()) {
-          try { handle.signalGroup('SIGTERM'); this.event(s,'signal',{signal:'SIGTERM'}); }
+        while (!groupExists() && rootExists() && performance.now()<readyDeadline) await sleep(1);
+        if (!groupExists() && rootExists()) { s.cleanup='unverified'; return; }
+        if (groupExists()) {
+          phase='term';
+          try { signalGroup('SIGTERM'); this.event(s,'signal',{signal:'SIGTERM'}); }
           catch(error) { if ((error as NodeJS.ErrnoException).code!=='ESRCH') throw error; }
+          phase='grace_wait';
           const until=performance.now()+grace;
-          while (handle.groupExists() && performance.now()<until) await sleep(Math.min(20,Math.max(1,until-performance.now())));
-          if (handle.groupExists()) { try { handle.signalGroup('SIGKILL'); this.event(s,'signal',{signal:'SIGKILL'}); }
+          while (groupExists() && performance.now()<until) await sleep(Math.min(20,Math.max(1,until-performance.now())));
+          phase='escalate';
+          if (groupExists()) { try { signalGroup('SIGKILL'); this.event(s,'signal',{signal:'SIGKILL'}); }
             catch(error) { if ((error as NodeJS.ErrnoException).code!=='ESRCH') throw error; } }
+          phase='final_wait';
           const final=performance.now()+this.config.drain_timeout_ms+500;
-          while((handle.groupExists()||handle.rootExists())&&performance.now()<final) await sleep(5);
+          while((groupExists()||rootExists())&&performance.now()<final) await sleep(5);
         }
-        s.cleanup=handle.groupExists()||handle.rootExists()?'partial':'group_cleared';
-      } catch(error) { s.cleanup='failed'; this.event(s,'cleanup_error',{message:String(error)}); }
+        phase='verify_clear';
+        s.cleanup=groupExists()||rootExists()?'partial':'group_cleared';
+      } catch(error) {
+        const detail=(error && typeof error==='object'?error:{}) as NodeJS.ErrnoException;
+        s.cleanup='failed';
+        this.event(s,'cleanup_error',{message:String(error),code:detail.code??null,
+          errno:detail.errno??null,syscall:detail.syscall??null,operation,phase,
+          attempted_signal:attemptedSignal,pid:handle.pid,pgid:handle.pgid,
+          root_exit_observed:s.exitedAt!==null,status:s.status});
+      }
       finally { this.event(s,'cleanup',{result:s.cleanup}); this.notify(s); this.maybeDispose(s); }
     })();
   }

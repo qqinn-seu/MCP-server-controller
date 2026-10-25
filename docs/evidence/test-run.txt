@@ -14,25 +14,26 @@
 
  RUN  v5.0.5 /home/ubuntu/work/github-MCP-server-controller
 
- ✓ tests/integration/pty.test.ts (16 tests) 3396ms
+ ✓ tests/integration/pty.test.ts (16 tests) 3253ms
    ✓ 真实 PTY：15.1 Linux 全量验收 (15)
-     ✓ RUN-SAME-NONZERO：超时 background 的同一会话继续运行且非零退出不报工具失败 334ms
+     ✓ RUN-SAME-NONZERO：超时 background 的同一会话继续运行且非零退出不报工具失败 326ms
    ✓ 真实 forkpty 初始竞态压力回归 (1)
-     ✓ IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空 1880ms
- ✓ tests/unit/wait-matcher.test.ts (16 tests) 696ms
- ✓ tests/integration/lifecycle.test.ts (14 tests) 669ms
- ✓ tests/integration/host.test.ts (2 tests) 346ms
+     ✓ IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空 1800ms
+ ✓ tests/unit/wait-matcher.test.ts (16 tests) 740ms
+ ✓ tests/integration/lifecycle.test.ts (14 tests) 666ms
+ ✓ tests/integration/host.test.ts (2 tests) 359ms
+ ✓ tests/unit/output-ring.test.ts (7 tests) 21ms
  ✓ tests/unit/prepare-pty.test.ts (5 tests) 18ms
- ✓ tests/unit/output-ring.test.ts (7 tests) 22ms
- ✓ tests/unit/input-queue.test.ts (4 tests) 12ms
+ ✓ tests/unit/cleanup-diagnostics.test.ts (3 tests) 16ms
+ ✓ tests/unit/input-queue.test.ts (4 tests) 17ms
  ✓ tests/unit/config.test.ts (4 tests) 11ms
 
- Test Files  8 passed (8)
-      Tests  68 passed (68)
-   Start at  07:52:34
-   Duration  6.78s (tests 94%, import 5%, transform 1%, worker 1%)
+ Test Files  9 passed (9)
+      Tests  71 passed (71)
+   Start at  08:14:41
+   Duration  7.02s (tests 92%, import 6%, transform 2%, worker 1%)
 
-    Isolate  8 workers spawned · ~146ms startup each (spawn + environment, per file)
-             at least ~1.02s faster with isolate: false — reuses workers across files instead of one per file
+    Isolate  9 workers spawned · ~149ms startup each (spawn + environment, per file)
+             at least ~1.19s faster with isolate: false — reuses workers across files instead of one per file
 
 JSON report written to /home/ubuntu/work/github-MCP-server-controller/docs/evidence/vitest-results.json
