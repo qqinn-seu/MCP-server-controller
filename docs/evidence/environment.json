@@ -1,0 +1,21 @@
+{
+  "recorded_at": "2026-10-25T07:22:57.516793+00:00",
+  "os": "Linux-6.18.38+-aarch64-with-glibc2.39",
+  "machine": "aarch64",
+  "uid": 1000,
+  "user": "ubuntu",
+  "node": "v22.13.0",
+  "npm": "10.9.2",
+  "python": "3.12.3",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "node-pty": "1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "docker_used": false,
+  "macOS_status": "用户本机 npm test 与手动场景人工验收待完成"
+}

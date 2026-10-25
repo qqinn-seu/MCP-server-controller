@@ -1,0 +1,14 @@
+UTC=2026-10-25T07:30:33.866Z OS=linux ARCH=arm64 NODE=v22.13.0 UID=1000
+COMMAND: ps -axo pid,ppid,pgid,stat,command
+TRACKED_PIDS=12543,12545,12546 TRACKED_PGIDS=12543,12546
+BEFORE_TERMINATE
+  12543   12532   12543 S<s+ /usr/bin/python3 -u /home/ubuntu/work/terminal-controller/tests/fixtures/terminal.py group
+  12545   12543   12543 S<+  /usr/bin/python3 -u -c import time; time.sleep(600)
+  12546   12532   12546 S<s+ /usr/bin/python3 -u /home/ubuntu/work/terminal-controller/tests/fixtures/terminal.py ignore-term
+FINAL_STATUS={"status":"exited","exit_code":0,"signal":null,"termination_reason":"user_request","output_closed":true,"output_complete":true,"log_available":true,"log_has_gaps":false,"session_id":"de8bb039-0015-42ea-948a-a210b5f41d02","server_epoch":"fa71e639-6dcd-44d5-aa0f-04c52ccca766","label":null,"mode":"pty","initial_cwd":"/home/ubuntu/work/terminal-controller","command_summary":"[\"python3\",\"-u\",\"/home/ubuntu/work/terminal-controller/tests/fixtures/terminal.py\",\"group\"]","created_at":"2026-10-25T07:30:33.869Z","started_at":"2026-10-25T07:30:33.872Z","exited_at":"2026-10-25T07:30:33.968Z","last_output_at":"2026-10-25T07:30:33.960Z","last_client_activity_at":"2026-10-25T07:30:33.973Z","effective_runtime_timeout_ms":3600000,"retained_output_bytes":33,"earliest_cursor":"or1.AAAAAAAAAAA.Tw9a2UDcW5Q569mYoCEQA1J6MGSxdTuqF8MkHL9hzeM","latest_cursor":"or1.AAAAAAAAACE.eKw9YxuQ0YKgtlKHQ6DB65g-Z4PwQsst7TuO2iFQ5Fg","cleanup_scope":"process_group","cleanup_result":"group_cleared"}
+FINAL_STATUS={"status":"exited","exit_code":null,"signal":"SIGKILL","termination_reason":"user_request","output_closed":true,"output_complete":true,"log_available":true,"log_has_gaps":false,"session_id":"8cf35562-d792-4219-a18f-944cb8e07ec3","server_epoch":"fa71e639-6dcd-44d5-aa0f-04c52ccca766","label":null,"mode":"pty","initial_cwd":"/home/ubuntu/work/terminal-controller","command_summary":"[\"python3\",\"-u\",\"/home/ubuntu/work/terminal-controller/tests/fixtures/terminal.py\",\"ignore-term\"]","created_at":"2026-10-25T07:30:33.905Z","started_at":"2026-10-25T07:30:33.906Z","exited_at":"2026-10-25T07:30:34.054Z","last_output_at":"2026-10-25T07:30:33.935Z","last_client_activity_at":"2026-10-25T07:30:34.075Z","effective_runtime_timeout_ms":3600000,"retained_output_bytes":13,"earliest_cursor":"or1.AAAAAAAAAAA.LKXS78rMurE09pvrKUbmHEHKDYZcCmLD-TVDXTvwjA4","latest_cursor":"or1.AAAAAAAAAA0.Fl0sLs0_08CgbloyGJNRv8pnVbEWKMKmNBYXkUfcq3U","cleanup_scope":"process_group","cleanup_result":"group_cleared"}
+AFTER_TERMINATE
+(no rows)
+REMAINING_TRACKED_ROWS=0 TRACKED_ZOMBIES=0
+PASS：所有本次跟踪的根进程、组内子进程均不再出现在 ps 中。
+范围：只证明本次fixture与受管PGID；不声称清除逃逸后代或全部OS进程。

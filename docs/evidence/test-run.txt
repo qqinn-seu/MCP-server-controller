@@ -1,0 +1,32 @@
+
+> mcp-terminal-controller@0.1.0 test:report
+> npm run build && vitest run --reporter=default --reporter=json --outputFile.json=docs/evidence/vitest-results.json
+
+
+> mcp-terminal-controller@0.1.0 build
+> tsc -p tsconfig.json
+
+
+ RUN  v5.0.5 /home/ubuntu/work/terminal-controller
+
+ ✓ tests/integration/pty.test.ts (16 tests) 3374ms
+   ✓ 真实 PTY：15.1 Linux 全量验收 (15)
+     ✓ RUN-SAME-NONZERO：超时 background 的同一会话继续运行且非零退出不报工具失败 331ms
+   ✓ 真实 forkpty 初始竞态压力回归 (1)
+     ✓ IMMEDIATE-TERMINATE：256次 create 后零宽限终止，不能误报存活根已清空 1865ms
+ ✓ tests/unit/wait-matcher.test.ts (16 tests) 743ms
+ ✓ tests/integration/lifecycle.test.ts (14 tests) 693ms
+ ✓ tests/integration/host.test.ts (2 tests) 371ms
+ ✓ tests/unit/output-ring.test.ts (7 tests) 22ms
+ ✓ tests/unit/input-queue.test.ts (4 tests) 14ms
+ ✓ tests/unit/config.test.ts (4 tests) 11ms
+
+ Test Files  7 passed (7)
+      Tests  63 passed (63)
+   Start at  07:31:13
+   Duration  6.77s (tests 93%, import 4%, transform 2%, worker 1%)
+
+    Isolate  7 workers spawned · ~150ms startup each (spawn + environment, per file)
+             at least ~901ms faster with isolate: false — reuses workers across files instead of one per file
+
+JSON report written to /home/ubuntu/work/terminal-controller/docs/evidence/vitest-results.json

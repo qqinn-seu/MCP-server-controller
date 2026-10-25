@@ -1,0 +1,25 @@
+{
+  "workspace_root": "/absolute/path/to/workspace",
+  "max_live_sessions": 16,
+  "max_session_records": 256,
+  "per_session_output_bytes": 8388608,
+  "input_queue_bytes_per_session": 65536,
+  "max_waiters_total": 64,
+  "default_runtime_timeout_ms": 3600000,
+  "max_runtime_timeout_ms": 86400000,
+  "idle_timeout_ms": 1800000,
+  "drain_timeout_ms": 2000,
+  "default_terminate_grace_ms": 2000,
+  "completed_record_ttl_ms": 3600000,
+  "match_window_bytes_per_stream": 65536,
+  "max_pattern_bytes": 1024,
+  "regex_eval_timeout_ms": 50,
+  "max_match_compute_ms_per_call": 250,
+  "allowed_shells": ["/bin/sh", "/bin/bash", "/bin/zsh"],
+  "base_env": {
+    "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+    "HOME": "/absolute/path/to/user-home",
+    "LANG": "C.UTF-8",
+    "TERM": "xterm-256color"
+  }
+}
